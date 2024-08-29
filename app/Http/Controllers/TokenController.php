@@ -27,13 +27,13 @@ class TokenController extends Controller
      */
     public function create()
     {
-        // Delete all existing tokens and clear any associated cookies
+        // Delete all existing tokens and clear any associated cookies before createing a new one
         $this->deleteTokens();
 
         // Generate a new random token value and unique ID
-        $tokenValue = Str::random(60);  // Random string for the token
-        $id = uniqid();  // Unique ID for the token
-        $expiresAt = now()->addMinutes(40);  // Token expiration time
+        $tokenValue = Str::random(60);  
+        $id = uniqid();  
+        $expiresAt = now()->addMinutes(40);  
 
         // Hash the token value for storage
         $hashedToken = Hash::make($tokenValue);
@@ -47,8 +47,8 @@ class TokenController extends Controller
 
         // Set a cookie for the new token
         $cookieName = 'access_token_' . $id;
-        $cookieValue = $hashedToken;  // Store hashed token in the cookie
-        $cookieExpire = $expiresAt->timestamp;  // Cookie expiration time
+        $cookieValue = $hashedToken;  
+        $cookieExpire = $expiresAt->timestamp;  
 
         // Set the cookie in the response
         setcookie($cookieName, $cookieValue, $cookieExpire, "/", null, false, true);

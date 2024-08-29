@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tokens', function (Blueprint $table) {
             $table->string('id_', 100);
             $table->string('token');
-            $table->timestamp('expires_at');
+            $table->timestamp('expires_at')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamps();
         });
     }
