@@ -33,7 +33,7 @@
 
 <div class="container mt-5">
     <h1 class="mb-4">User List</h1>
-
+    
     <!-- User Registration Form -->
     <div class="mb-4">
         <h2>Register New User</h2>
@@ -41,59 +41,74 @@
             @csrf
             <div class="mb-3">
                 <label for="name" class="form-label">Full Name</label>
-                <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" required>
+                <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" >
                 @error('name')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" required>
+                <input type="text" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" >
                 @error('email')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
             <div class="mb-3">
                 <label for="phone" class="form-label">Phone Number</label>
-                <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" required>
+                <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" >
                 @error('phone')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
             <div class="mb-3">
                 <label for="position_id" class="form-label">Position</label>
-                <select class="form-select @error('position_id') is-invalid @enderror" id="position_id" name="position_id" required>
+                <select class="form-select @error('position_id') is-invalid @enderror" id="position_id" name="position_id" >
                     <option value="">Select Position</option>
-                    <option value="1">Lawyer</option>
-                    <option value="2">Content Manager</option>
-                    <option value="3">Security</option>
-                    <option value="4">Designer</option>
+                    <option value="1">1 - Lawyer</option>
+                    <option value="2">2 - Content Manager</option>
+                    <option value="3">3 - Security</option>
+                    <option value="4">4 - Designer</option>
                 </select>
                 @error('position_id')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
             <div class="mb-3">
                 <label for="photo" class="form-label">Photo</label>
-                <input type="file" class="form-control @error('photo') is-invalid @enderror" id="photo" name="photo" accept="image/*" required>
+                <input type="file" class="form-control @error('photo') is-invalid @enderror" id="photo" name="photo" accept="image/*" >
                 @error('photo')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
             <button type="submit" class="btn btn-primary">Register</button>
         </form>
+        <form action="/token" method="get">
+            <button type="submit" style="
+                background-color: green; 
+                border-radius: 10px; 
+                color: white; 
+                padding: 10px 20px; 
+                font-size: 16px; 
+                font-weight: bold; 
+                border: none; 
+                cursor: pointer; 
+                transition: background-color 0.3s ease;
+                margin-top: 2px;">
+                GET ACCESS
+            </button>
+        </form>
     </div>
-
+    
     <!-- User List Table -->
     <table class="table table-striped">
         <thead>
-        <tr>
-            <th>#</th>
-            <th>Photo</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Position</th>
+            <tr>
+                <th>#</th>
+                <th>Photo</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Position</th>
             <th>With us since</th>
         </tr>
         </thead>

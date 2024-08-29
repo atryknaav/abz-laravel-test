@@ -24,92 +24,39 @@ class UserController extends Controller
     public function index(Request $request)
 {
     
-    $count = $request->query('count', 5);
+    $count = $request->query('count', 6);
     $page = $request->query('page', 1);
-
+    
     $fails = [];
-
-
+    
+    
     if (!is_numeric($count) || (int)$count <= 0) {
         $fails['count'] = 'The count must be a positive integer.';
     }
+    if(is_string($count))$count = intval($count);
 
-    if (!is_numeric($page) || (int)$page < 1 || (int)$page >  ceil(User::count()/$count) ) {
+    if (!is_numeric($page) || (int)$page < 1) {
         $fails['page'] = 'The page must be at least 1 and not beyond the total amount o users.';
     }
 
     if(!empty($fails))
-    return view('users.index', [
-        'usersResponse' => [
-            'success' => false,
-            'page' => 1,
-            'count' => $count,
-            'total_pages' => 0,
-            'total_users' => 0,
-            'links' => [
-                'next_url' => null,
-                'prev_url' => null
-            ],
-            'users' => [],
-            'usersResponse422' => [
-                'success' => false,
-                'message' => 'The page does not exist: the page number is too high.',
-                'fails'=> $fails
-            ],
-        ],
-    ]);
+        return response()->json([
+            'message' => 'Wrong data entered. Validation failed.',
+            'fails' => $fails
+        ], 422);
 
 
-    if ((int)$page >  User::count()/$count + $count) {
-        $users = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 1);
+    if ((int)$page >  ceil(User::count()/$count) ) {
+        $users = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 1);       
+            return response()->json([
+                'message' => 'The page does not exist: the page number is too high',
+                'fails' => $fails
+            ], 404);
+        }
 
-        return view('users.index', [
-            'usersResponse' => [
-                'success' => false,
-                'page' => 0,
-                'count' => $count,
-                'total_pages' => 0,
-                'total_users' => 0,
-                'links' => [
-                    'next_url' => null,
-                    'prev_url' => null
-                ],
-                'users' => [],
-            ],
-            'usersResponse404' => [
-                'success' => false,
-                'message' => 'The page does not exist: the page number is too high'
-            ],
-        ]);
-    }
 
-    if (!empty($fails)) {
-        $users = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 1);
-
-        return view('users.index', [
-            'usersResponse' => [
-                'success' => false,
-                'page' => 0,
-                'count' => $count,
-                'total_pages' => 0,
-                'total_users' => 0,
-                'links' => [
-                    'next_url' => null,
-                    'prev_url' => null
-                ],
-                'users' => [],
-            ],
-            'usersResponse422' => [
-                'success' => false,
-                'message' => 'Validation failed',
-                'fails' => $fails,
-            ],
-        ]);
-    }
-
-    // Fetch the users with the validated count and page values
     $users = User::orderBy('id', 'desc')->paginate((int)$count, ['*'], 'page', (int)$page);
-
+    $users->withPath("/users?count=$count");
     return view('users.index', [
         'users' => $users,
         'usersResponse' => [
@@ -121,8 +68,7 @@ class UserController extends Controller
             'links' => [
                 'next_url' => $users->nextPageUrl(),
                 'prev_url' => $users->previousPageUrl(),
-            ],
-            'users' => UserResource::collection($users),
+            ]
         ],
     ]);
 }
