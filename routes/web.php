@@ -9,6 +9,11 @@ Route::redirect('/', '/users');
 
 Route::get('/token', [TokenController::class, 'create']);
 
+
+Route::get('/positions/{any}', function ($any) {
+    //instead of error handling (as there are no errors to throw potentially)
+    return redirect("/positions");
+})->where('any', '.*');
 Route::get('/positions', [PositionController::class, 'index']);
 
 Route::get('/users', [UserController::class, 'index']);

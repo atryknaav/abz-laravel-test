@@ -9,13 +9,21 @@ use Illuminate\Support\Facades\Hash;
 
 class VerifyTokenMiddleware
 {
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
     public function handle(Request $request, Closure $next)
     {   
-        $ckName = null;
-        $tokenValue = null;
+        $ckName = null;  // Variable to store the cookie name
+        $tokenValue = null;  // Variable to store the token value from the cookie
 
+        // Check if there are any cookies
         if (!empty($_COOKIE)) {
-        
+            // Iterate through cookies to find one with 'access_token' in its name
             foreach ($_COOKIE as $name => $value) {
                 if (strpos($name, 'access_token') !== false) {
                     $ckName = $name;
@@ -23,42 +31,54 @@ class VerifyTokenMiddleware
                     break;
                 }
             }
-        
+
+            // If no valid token cookie is found, return an unauthorized response
             if ($ckName === null) {
                 $cookies = [];
+                // Collect all cookies for debugging or logging
                 foreach ($_COOKIE as $name => $value) {
                     $cookies[] = "$name: $value";
                 }
-        
+
                 return response()->json([
                     'message' => 'Unauthorized: you are not authorized for this action. The cookie does not exist. Click the green button to receive permissions.',
                 ], 401);
             }
-
-            
+        } else {
+            // If no cookies are present, return an unauthorized response
+            return response()->json([
+                'message' => 'Unauthorized: you are not authorized for this action. The cookie does not exist.',
+            ], 401);
         }
-        else{
-            return response()->json(['message' => 'Unauthorized: you are not authorized for this action. The cookie does not exist.'], 401);
-        }
 
+        // Extract the token ID from the cookie name
         $id = str_replace('access_token_', '', $ckName);
 
+        // Retrieve the token record from the database using the ID
         $tokenRow = Token::where('id_', $id)->first();
-        
-        // return response()->json(['message' => 'Unauthorized on db, id: '.$id], 401);
-        if($tokenRow){
-            if( !Hash::check($tokenRow->token, $tokenValue)) {
-            }
-        }
-        else{
-            return response()->json(['message' => 'Unauthorized: the token does not exist in the data base.'], 401);
 
+        // If the token record does not exist, return an unauthorized response
+        if (!$tokenRow) {
+            return response()->json([
+                'message' => 'Unauthorized: the token does not exist in the database.',
+            ], 401);
         }
 
+        // Check if the provided token value matches the hashed token stored in the database
+        if (!Hash::check($tokenRow->token, $tokenValue)) {
+            return response()->json([
+                'message' => 'Unauthorized: the token value is invalid.',
+            ], 401);
+        }
+
+        // Check if the token has expired
         if ($tokenRow->expires_at < now()) {
-            return response()->json(['message' => 'The token expired.'], 401);
+            return response()->json([
+                'message' => 'The token expired.',
+            ], 401);
         }
 
+        // If all checks pass, proceed with the request
         return $next($request);
     }
 }

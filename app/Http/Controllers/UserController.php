@@ -20,135 +20,137 @@ class UserController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * Handles pagination and validation of query parameters.
      */
     public function index(Request $request)
-{
-    
-    $count = $request->query('count', 6);
-    $page = $request->query('page', 1);
-    
-    $fails = [];
-    
-    
-    if (!is_numeric($count) || (int)$count <= 0) {
-        $fails['count'] = 'The count must be a positive integer.';
-    }
-    if(is_string($count))$count = intval($count);
+    {
+        $count = $request->query('count', 6);
+        $page = $request->query('page', 1);
+        
+        $fails = [];
+        
+        // Validate 'count' parameter
+        if (!is_numeric($count) || (int)$count <= 0) {
+            $fails['count'] = 'The count must be a positive integer.';
+        }
+        if(is_string($count)) $count = intval($count);
 
-    if (!is_numeric($page) || (int)$page < 1) {
-        $fails['page'] = 'The page must be at least 1 and not beyond the total amount o users.';
-    }
+        // Validate 'page' parameter
+        if (!is_numeric($page) || (int)$page < 1) {
+            $fails['page'] = 'The page must be at least 1 and not beyond the total amount of users.';
+        }
 
-    if(!empty($fails))
-        return response()->json([
-            'message' => 'Wrong data entered. Validation failed.',
-            'fails' => $fails
-        ], 422);
+        // If validation fails, return error response
+        if(!empty($fails))
+            return response()->json([
+                'message' => 'Wrong data entered. Validation failed.',
+                'fails' => $fails
+            ], 422);
 
-
-    if ((int)$page >  ceil(User::count()/$count) ) {
-        $users = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 1);       
+        // Check if requested page exceeds the total number of pages
+        if ((int)$page >  ceil(User::count()/$count) ) {
+            $users = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 1);       
             return response()->json([
                 'message' => 'The page does not exist: the page number is too high',
                 'fails' => $fails
             ], 404);
         }
 
+        // Fetch paginated users
+        $users = User::orderBy('id', 'desc')->paginate((int)$count, ['*'], 'page', (int)$page);
+        $users->withPath("/users?count=$count");
 
-    $users = User::orderBy('id', 'desc')->paginate((int)$count, ['*'], 'page', (int)$page);
-    $users->withPath("/users?count=$count");
-    return view('users.index', [
-        'users' => $users,
-        'usersResponse' => [
-            'success' => true,
-            'page' => $users->currentPage(),
-            'count' => $count,
-            'total_pages' => $users->lastPage(),
-            'total_users' => $users->total(),
-            'links' => [
-                'next_url' => $users->nextPageUrl(),
-                'prev_url' => $users->previousPageUrl(),
-            ]
-        ],
-    ]);
-}
-
-
-
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        // Return view with paginated users and metadata
+        return view('users.index', [
+            'users' => $users,
+            'usersResponse' => [
+                'success' => true,
+                'page' => $users->currentPage(),
+                'count' => $count,
+                'total_pages' => $users->lastPage(),
+                'total_users' => $users->total(),
+                'links' => [
+                    'next_url' => $users->nextPageUrl(),
+                    'prev_url' => $users->previousPageUrl(),
+                ]
+            ],
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
+     * Handles validation, image processing, and user creation.
      */
     public function store(Request $request)
-{
-    $rules = [
+    {
+        // Validation rules
+        $rules = [
             'name' => 'required|string|min:2|max:60',
             'email' => 'required|string|min:6|max:100',
             'phone' => 'required|string|regex:/^\+380\d{9}$/',
             'position_id' => 'required|integer|min:1',
             'photo' => 'required|image|mimes:jpeg,jpg,png|dimensions:min_width=70,min_height=70',
-        
-    ];
+        ];
 
-    $validator = Validator::make($request->all(), $rules);
+        // Validate request data
+        $validator = Validator::make($request->all(), $rules);
 
-
-    if ($validator->fails()) {
-        return response()->json([
-            'message' => 'Wrong data entered. Validation failed.',
-            'errors' => $validator->errors()
-        ], 422);
-    }
-
-    if ($validator->passes()) {
-        if(!User::where('email', $request->email)->doesntExist() || !User::where('phone', $request->phone)->doesntExist())
-        return response()->json([
-            'message' => 'Wrong data entered. Validation failed. The user with this phone number or email already exists.',
-        ], 409);
-    }
-
-
-    $validatedData = $validator->validated();
-
-    $imgPath = null;
-    try {
-        if ($request->hasFile('photo')) {
-            $originalImagePath = $request->file('photo')->store('profile_images', 'public');
-            $this->resizeAndCompressImage(storage_path('app/public/' . $originalImagePath));
-            $imgPath = $originalImagePath;
+        // Handle validation failure
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Wrong data entered. Validation failed.',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        
-        $user = User::create([
-            'name' => $validatedData['name'],
-            'email' => $validatedData['email'],
-            'photo' => $imgPath,
-            'phone'=>$validatedData['phone'],
-            'position_id'=>$validatedData['position_id'],
-            'email_verified_at'=>Carbon::now()
-        ]);
-        
-        \Log::info('User registered successfully: ' . $user->email);
-        setcookie('access_token_'.Token::first()->id_, '', -1, '/');
-        Token::truncate();
-        return redirect('/users')->with('success', 'Registration successful.');
+        // Check for existing email or phone number
+        if ($validator->passes()) {
+            if (!User::where('email', $request->email)->doesntExist() || !User::where('phone', $request->phone)->doesntExist()) {
+                return response()->json([
+                    'message' => 'Wrong data entered. Validation failed. The user with this phone number or email already exists.',
+                ], 409);
+            }
+        }
 
-    } catch (\Exception $e) {
-        \Log::error('Registration error: ' . $e->getMessage());
-        return response()->json(['Registration failed.'.$e->getMessage()]);
+        // Prepare data for user creation
+        $validatedData = $validator->validated();
+        $imgPath = null;
+
+        try {
+            // Handle image upload and processing
+            if ($request->hasFile('photo')) {
+                $originalImagePath = $request->file('photo')->store('profile_images', 'public');
+                $this->resizeAndCompressImage(storage_path('app/public/' . $originalImagePath));
+                $imgPath = $originalImagePath;
+            }
+
+            // Create the user
+            $user = User::create([
+                'name' => $validatedData['name'],
+                'email' => $validatedData['email'],
+                'photo' => $imgPath,
+                'phone' => $validatedData['phone'],
+                'position_id' => $validatedData['position_id'],
+                'email_verified_at' => Carbon::now()
+            ]);
+
+            \Log::info('User registered successfully: ' . $user->email);
+
+            // Clear token cookie and truncate tokens
+            setcookie('access_token_' . Token::first()->id_, '', -1, '/');
+            Token::truncate();
+
+            return redirect('/users')->with('success', 'Registration successful.');
+
+        } catch (\Exception $e) {
+            \Log::error('Registration error: ' . $e->getMessage());
+            return response()->json(['Registration failed.' . $e->getMessage()]);
+        }
     }
-}
 
-
-
+    /**
+     * Resize and compress the uploaded image using TinyPNG API.
+     */
     protected function resizeAndCompressImage($imagePath)
     {
         try {
@@ -156,61 +158,55 @@ class UserController extends Controller
 
             $source = \Tinify\fromFile($imagePath);
             
-            // Resize the image
+            // Resize image to fit within 70x70 pixels
             $resized = $source->resize([
                 "method" => "cover",
                 "width" => 70,
                 "height" => 70
             ]);
             
-      
             $resized->toFile($imagePath);
         } catch (\Exception $e) {
             \Log::error('TinyPNG error: ' . $e->getMessage());
         }
     }
 
-
-
     /**
      * Display the specified resource.
+     * Fetches a user by ID and handles errors if not found or invalid ID.
      */
     public function show(Request $request)
     {
         $fails = [];
 
         try {
-         
+            // Find user by ID
             $user = User::findOrFail($request->id);
             return view('users.show', [
-                
-                    'success'=> true,
-                    'user' => $user
-                
+                'success' => true,
+                'user' => $user
             ]);
         } catch (ModelNotFoundException $e) {
-            
-            if(!is_numeric($request->id) || $request->id < 0){
-
+            // Handle non-numeric or negative ID
+            if (!is_numeric($request->id) || $request->id < 0) {
                 return view('users.show', [
                     'userResponse422' => [
-                        'success'=> false,
-                        'message'=> 'User ID must be a positive integer'
+                        'success' => false,
+                        'message' => 'User ID must be a positive integer'
                     ],
                     'userResponse' => [],
                 ]);
             }
+            // Handle user not found
             return view('users.show', [
                 'userResponse404' => [
-                    'success'=> false,
-                    'message'=> 'This user does not exist'
+                    'success' => false,
+                    'message' => 'This user does not exist'
                 ],
                 'userResponse' => [],
             ]);
         }
-
-
-}
+    }
 
     /**
      * Show the form for editing the specified resource.
