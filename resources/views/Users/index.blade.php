@@ -127,12 +127,12 @@
                 </tr>
         @endforeach
         </tbody>
-        A{{$usersResponse['count']}}
+        
     </table>
-    <form action="/users?page={{$usersResponse['page']}}&count={{$usersResponse['count']}}">
+    <form action="/users?page=$page&count=$count">
         <label for="count">Users per page</label>
-        <input type="text" name="count" value='{{$usersResponse['count']}}'>
-        <input type="text" name="page" value='{{$usersResponse['page']}}' style="display: none;">
+        <input type="text" name="count" value=$count>
+        <input type="text" name="page" value=$page style="display: none;">
         <button type="submit">Apply</button>
     </form>
 

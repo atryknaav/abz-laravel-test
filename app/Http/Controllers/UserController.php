@@ -43,6 +43,7 @@ class UserController extends Controller
         // If validation fails, return error response
         if(!empty($fails))
             return response()->json([
+                'success'=> false,
                 'message' => 'Wrong data entered. Validation failed.',
                 'fails' => $fails
             ], 422);
@@ -51,6 +52,7 @@ class UserController extends Controller
         if ((int)$page >  ceil(User::count()/$count) ) {
             $users = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 1);       
             return response()->json([
+                'success'=> false,
                 'message' => 'The page does not exist: the page number is too high',
                 'fails' => $fails
             ], 404);
@@ -62,17 +64,16 @@ class UserController extends Controller
 
         // Return view with paginated users and metadata
         return view('users.index', [
+            'success'=> true,
             'users' => $users,
-            'usersResponse' => [
-                'success' => true,
-                'page' => $users->currentPage(),
-                'count' => $count,
-                'total_pages' => $users->lastPage(),
-                'total_users' => $users->total(),
-                'links' => [
+            'page' => $users->currentPage(),
+            'count' => $count,
+            'total_pages' => $users->lastPage(),
+            'total_users' => $users->total(),
+            'links' => [
                     'next_url' => $users->nextPageUrl(),
                     'prev_url' => $users->previousPageUrl(),
-                ]
+                
             ],
         ]);
     }
@@ -98,6 +99,7 @@ class UserController extends Controller
         // Handle validation failure
         if ($validator->fails()) {
             return response()->json([
+                'success'=> false,
                 'message' => 'Wrong data entered. Validation failed.',
                 'errors' => $validator->errors()
             ], 422);
@@ -107,6 +109,7 @@ class UserController extends Controller
         if ($validator->passes()) {
             if (!User::where('email', $request->email)->doesntExist() || !User::where('phone', $request->phone)->doesntExist()) {
                 return response()->json([
+                    'success'=> false,
                     'message' => 'Wrong data entered. Validation failed. The user with this phone number or email already exists.',
                 ], 409);
             }
@@ -177,35 +180,31 @@ class UserController extends Controller
      */
     public function show(Request $request)
     {
-        $fails = [];
-
-        try {
-            // Find user by ID
-            $user = User::findOrFail($request->id);
+        // Find user by ID
+        if (!is_numeric($request->id) || !User::find($request->id, 'id')) {
+                return response()->json( [
+                   
+                        'success' => false,
+                        'message' => 'This user does not exist'
+                    
+                ], 404);
+            }
+          
+        if(User::find($request->id)){
             return view('users.show', [
                 'success' => true,
-                'user' => $user
+                'user' => User::find($request->id)
             ]);
-        } catch (ModelNotFoundException $e) {
-            // Handle non-numeric or negative ID
-            if (!is_numeric($request->id) || $request->id < 0) {
-                return view('users.show', [
-                    'userResponse422' => [
-                        'success' => false,
-                        'message' => 'User ID must be a positive integer'
-                    ],
-                    'userResponse' => [],
-                ]);
-            }
-            // Handle user not found
-            return view('users.show', [
-                'userResponse404' => [
-                    'success' => false,
-                    'message' => 'This user does not exist'
-                ],
-                'userResponse' => [],
-            ]);
+        }else{
+            return response()->json( [
+                   
+                'success' => false,
+                'message' => 'Unexpected error'
+            
+        ], 404);
         }
+    
+        
     }
 
     /**

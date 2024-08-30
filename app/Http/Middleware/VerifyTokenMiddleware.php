@@ -2,9 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use Error;
 use Closure;
 use App\Models\Token;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 
 class VerifyTokenMiddleware
@@ -41,12 +43,14 @@ class VerifyTokenMiddleware
                 }
 
                 return response()->json([
+                    'success' => false,
                     'message' => 'Unauthorized: you are not authorized for this action. The cookie does not exist. Click the green button to receive permissions.',
                 ], 401);
             }
         } else {
             // If no cookies are present, return an unauthorized response
             return response()->json([
+                'success' => false,
                 'message' => 'Unauthorized: you are not authorized for this action. The cookie does not exist.',
             ], 401);
         }
@@ -60,13 +64,24 @@ class VerifyTokenMiddleware
         // If the token record does not exist, return an unauthorized response
         if (!$tokenRow) {
             return response()->json([
+                'success' => false,
                 'message' => 'Unauthorized: the token does not exist in the database.',
             ], 401);
         }
 
         // Check if the provided token value matches the hashed token stored in the database
-        if (!Hash::check($tokenRow->token, $tokenValue)) {
+        try{
+            Hash::needsRehash($tokenValue, $tokenRow->token);
+        }
+        catch (Error $e){
             return response()->json([
+                'success' => false,
+                'message' => 'The cookie value does not use the Bcrypt algorithm.',
+            ], 401);
+        }
+        if (!Hash::check($tokenValue, $tokenRow->token)) {
+            return response()->json([
+                'success' => false,
                 'message' => 'Unauthorized: the token value is invalid.',
             ], 401);
         }
@@ -74,6 +89,7 @@ class VerifyTokenMiddleware
         // Check if the token has expired
         if ($tokenRow->expires_at < now()) {
             return response()->json([
+                'success' => false,
                 'message' => 'The token expired.',
             ], 401);
         }
