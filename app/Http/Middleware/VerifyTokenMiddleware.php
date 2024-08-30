@@ -70,19 +70,17 @@ class VerifyTokenMiddleware
         }
 
         // Check if the provided token value matches the hashed token stored in the database
-        try{
-            Hash::needsRehash($tokenValue, $tokenRow->token);
-        }
-        catch (Error $e){
+        if($this->isBcryptHash($tokenValue)){
+            if (!Hash::check($tokenRow->token, $tokenValue)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: the token value is invalid.',
+                ], 401);
+            }
+        }else{
             return response()->json([
                 'success' => false,
-                'message' => 'The cookie value does not use the Bcrypt algorithm.',
-            ], 401);
-        }
-        if (!Hash::check($tokenValue, $tokenRow->token)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized: the token value is invalid.',
+                'message' => 'The token value does not use the Hash class algorithm.',
             ], 401);
         }
 
@@ -97,4 +95,22 @@ class VerifyTokenMiddleware
         // If all checks pass, proceed with the request
         return $next($request);
     }
+
+    function isBcryptHash($encodedString) {
+        // Decode the URL-encoded string
+        $string = urldecode($encodedString);
+        
+        // Check the length of the string
+        if (strlen($string) !== 60) {
+            return false;
+        }
+        
+        // Check the prefix for bcrypt hashes
+        if (strpos($string, '$2y$') === 0 || strpos($string, '$2a$') === 0 || strpos($string, '$2b$') === 0) {
+            return true;
+        }
+        
+        return false;
+    }
+     
 }
